@@ -5,7 +5,7 @@
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node app.js"
+    "start": "nodemon --exec babel-node app.js"
   },
   "repository": {
     "type": "git",
@@ -18,10 +18,13 @@
   },
   "homepage": "https://github.com/Andrei-Zhuk/NodeJS#readme",
   "devDependencies": {
+    "@babel/cli": "^7.1.5",
     "@babel/core": "^7.1.6",
+    "@babel/node": "^7.0.0",
     "@babel/preset-env": "^7.1.6",
     "@babel/preset-stage-2": "^7.0.0",
     "@babel/register": "^7.0.0",
     "nodemon": "^1.18.7"
-  }
+  },
+  "dependencies": {}
 }
