@@ -1,7 +1,13 @@
-import Config from "./config";
-import {User, Product} from "./models";
+import { DirWatcher, Importer } from "./modules";
 
-const user = new User();
-const product = new Product();
+const dirWatcher = new DirWatcher();
+const importer = new Importer()
 
-console.log(Config.name)
+dirWatcher.on("changed", () => {
+    console.log("changed");
+    importer.import(__dirname + "/data/index.csv").then((data) => {
+        console.log(data)
+    })
+})
+
+dirWatcher.watch(__dirname + "/data/index.csv", 1000)
