@@ -1,14 +1,34 @@
 const fs = require("fs");
+const util = require('util');
 
 export default class Importer {
-    import(path) {
+    import(pathArr) {
+        const fsReadFile = util.promisify(fs.readFile);
+
         return new Promise((resolve, reject) => {
-            fs.readFile(path, (err, data) => {
-                if (err) throw reject(err);
-                let convertedData = csvJSON(data.toString())
-                return resolve(convertedData)
-            });
+            const promises = [];
+
+            pathArr.forEach((path) => {
+                const reader = fsReadFile(path).then((data) => {
+                    return csvJSON(data.toString());
+                }).catch((err) => {
+                    reject(err)
+                })
+                promises.push(reader)
+            })
+            resolve(Promise.all(promises))
+        });
+    }
+
+    importSync(pathArr) {
+        const filesData = [];
+
+        pathArr.forEach((path) => {
+            const fileData = fs.readFileSync(path)
+            filesData.push(csvJSON(fileData.toString()))
         })
+
+        return filesData;
     }
 }
 
