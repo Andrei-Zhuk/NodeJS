@@ -1,7 +1,8 @@
-import Config from "./config";
-import {User, Product} from "./models";
+import { DirWatcher, Importer } from "./modules";
 
-const user = new User();
-const product = new Product();
+const dirWatcher = new DirWatcher();
+const importer = new Importer()
 
-console.log(Config.name)
+importer.addListener(console.log)
+
+dirWatcher.watch(__dirname + "/data", 1000)
