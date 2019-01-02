@@ -1,23 +1,16 @@
-const fs = require("fs");
-const util = require('util');
+import fs from "fs";
+import util from 'util';
+import { emitter, changedEvent } from './emitter.js';
+
+const fsReadFile = util.promisify(fs.readFile);
 
 export default class Importer {
     import(pathArr) {
-        const fsReadFile = util.promisify(fs.readFile);
-
-        return new Promise((resolve, reject) => {
-            const promises = [];
-
-            pathArr.forEach((path) => {
-                const reader = fsReadFile(path).then((data) => {
-                    return csvJSON(data.toString());
-                }).catch((err) => {
-                    reject(err)
-                })
-                promises.push(reader)
+        return Promise.all(pathArr.map((path) => {
+            return fsReadFile(path).then((data) => {
+                return csvJSON(data.toString());
             })
-            resolve(Promise.all(promises))
-        });
+        }))
     }
 
     importSync(pathArr) {
@@ -29,6 +22,17 @@ export default class Importer {
         })
 
         return filesData;
+    }
+
+    addListener(callback = () => {}) {
+        emitter.on(changedEvent, (changedFiles) => {
+            console.log(changedEvent);
+            this.import(changedFiles).then((data) => {
+                callback(data)
+            })
+            const data = this.importSync(changedFiles)
+            callback(data)
+        })
     }
 }
 

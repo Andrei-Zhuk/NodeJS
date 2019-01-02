@@ -1,6 +1,9 @@
-const EventEmitter = require('events');
-const fs = require("fs");
-const util = require('util');
+import EventEmitter from 'events';
+import fs from "fs";
+import util from 'util';
+import { emitter, changedEvent } from './emitter.js';
+
+const fsReadFile = util.promisify(fs.readFile);
 
 export default class DirWatcher extends EventEmitter {
     constructor() {
@@ -10,24 +13,22 @@ export default class DirWatcher extends EventEmitter {
 
     watch(path, delay) {
         const pathType = fs.lstatSync(path);
-        const fsReadFile = util.promisify(fs.readFile);
 
         if (pathType.isDirectory()) {
             fs.readdir(path, (err, files) => {
                 if (err) throw err;
-                const promises = [];
 
-                files.forEach((file) => {
+                const promises = files.map((file) => {
                     const completePath = `${path}/${file}`;
                     const reader = fsReadFile(completePath).then((data) => {
                         this.watchers[completePath] = data.toString();
                     }).catch((err) => {
                         console.error(err)
                     })
-                    promises.push(reader)
+                    return reader;
                 })
                 Promise.all(promises).then(() => {
-                    this.emit("changed", Object.keys(this.watchers));
+                    emitter.emit(changedEvent, Object.keys(this.watchers));
                 })
             });
 
@@ -38,8 +39,9 @@ export default class DirWatcher extends EventEmitter {
                         const isChanged = this.watchers[path] !== data.toString();
                         if (isChanged) {
                             this.watchers[path] = data.toString();
+                            return path;
                         }
-                        return isChanged ? path : null;
+                        return null;
                     }).catch((err) => {
                         console.error(err)
                     })
@@ -49,7 +51,7 @@ export default class DirWatcher extends EventEmitter {
                 Promise.all(promises).then((data) => {
                     let changedFiles = data.filter((file) => file !== null);
                     if (changedFiles.length !== 0) {
-                        this.emit("changed", changedFiles);
+                        emitter.emit(changedEvent, changedFiles);
                     }
                 })
             }, delay)
@@ -57,13 +59,13 @@ export default class DirWatcher extends EventEmitter {
             fs.readFile(path, (err, data) => {
                 if (err) throw err;
                 this.watchers[path] = data.toString();
-                this.emit("changed", [path]);
+                emitter.emit(changedEvent, [path]);
             });
             setInterval(() => {
                 fs.readFile(path, (err, data) => {
                     if (err) throw err;
                     if (this.watchers[path] !== data.toString()) {
-                        this.emit("changed", [path]);
+                        emitter.emit(changedEvent, [path]);
                         this.watchers[path] = data.toString();
                     }
                 });
