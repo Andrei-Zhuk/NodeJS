@@ -5,6 +5,7 @@ const through = require("through2")
 
 const fsReaddir = util.promisify(fs.readdir);
 const fsReadFile = util.promisify(fs.readFile);
+const fsWriteFile = util.promisify(fs.writeFile);
 const cssStatic = `
 .ngmp18 {
     background-color: #fff;
@@ -22,54 +23,69 @@ const cssStatic = `
     font-weight: bold;
 }`;
 
-program.option("-a, --action <name>", "Dispatch an action").option("-f, --file <url>", "Provide file").option("-p, --path <path>", "Provide path").parse(process.argv)
+const requiringArgs = {
+    file: ['outputFile', 'convertFromFile', 'convertToFile'],
+    path: ['cssBundler'],
+  };
 
-if (program.action == "reverse") {
+const helpOption = process.argv.findIndex((o) => o === '-h' || o === '--help')
+if (helpOption !== -1 && helpOption !== 2) {
+    process.argv.splice(helpOption, 1)
+}
+
+program
+    .option("-a, --action <name>", "Dispatch an action")
+    .option("-f, --file <url>", "Provide file")
+    .option("-p, --path <path>", "Provide path")
+    .parse(process.argv);
+
+const actions = {
+    reverse,
+    transform,
+    outputFile,
+    convertFromFile,
+    convertToFile,
+    cssBundler,
+};
+
+const args = [];
+
+if (process.argv.length === 2 || !actions[program.action]) {
+    console.log("There is no such action")
+    program.help()
+}
+
+Object.keys(requiringArgs).forEach(key => {
+    const isRequired = requiringArgs[key].includes(program.action);
+        
+    if (isRequired) {
+        if (!program[key]) {
+            throw new Error(`Argument ${key} is required but not provided`);
+        } else {
+            args.push(program[key]);
+        }
+    }
+});
+  
+actions[program.action](...args);
+
+function reverse() {
     const stream = through(function (buffer, encoding, next) {
-        this.push(reverse(buffer.toString()))
+        const reverseStr = buffer.toString().slice(0, -2).split('').reverse().join('');
+        this.push(reverseStr + buffer.toString().slice(-2))
         next();
     })
 
     process.stdin.pipe(stream).pipe(process.stdout);
-} else if (program.action == "transform") {
+}
+
+function transform() {
     const stream = through(function (buffer, encoding, next) {
-        this.push(transform(buffer.toString()))
+        this.push(buffer.toString().toUpperCase());
         next();
     })
 
     process.stdin.pipe(stream).pipe(process.stdout);
-} else if (program.action == "outputFile") {
-    if (!program.file) {
-        throw new Error("file is not provided");
-    }
-    outputFile(program.file)
-} else if (program.action == "convertFromFile") {
-    if (!program.file) {
-        throw new Error("file is not provided");
-    }
-    convertFromFile(program.file)
-} else if (program.action == "convertToFile") {
-    if (!program.file) {
-        throw new Error("file is not provided");
-    }
-    convertToFile(program.file)
-} else if (program.action == "cssBundler") {
-    if (!program.path) {
-        throw new Error("path is not provided");
-    }
-    cssBundler(program.path);
-} else {
-    throw new Error("there is no such action, use --help to get an information about available actions")
-}
-
-function reverse(str) {
-    // console.log(str)
-    let reverseStr = str.slice(0, -2).split('').reverse().join('');
-    return reverseStr + str.slice(-2);
-}
-
-function transform(str) {
-    return str.toUpperCase()
 }
 
 function outputFile(filePath) {
@@ -139,11 +155,8 @@ function cssBundler(path) {
 
             return Promise.all(promises);
         }).then((dataArr) => {
-            const bundleData = [...dataArr, cssStatic].join("\n")
-            fs.writeFile(`${path}/bundle.css`, bundleData, function (err) {
-                if (err) throw err;
-                console.log('Saved!');
-              });
+            const bundleData = [...dataArr, cssStatic].join("\n");
+            return fsWriteFile(`${path}/bundle.css`, bundleData);
         }).catch((err) => console.error(err));
     } else {
         throw new Error("provide path to a directory")
