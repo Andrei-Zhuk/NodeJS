@@ -4,6 +4,25 @@ const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const passport = require("passport");
 const LocalStrategy = require("passport-local");
+const Sequelize = require('sequelize');
+
+const sq = require("./sequelize");
+const User = require("./models/User");
+const Product = require("./models/Product");
+
+// console.log(User)
+
+User.sync();
+Product.sync();
+
+// sq
+//   .authenticate()
+//   .then(() => {
+//     console.log('Connection has been established successfully.');
+//   })
+//   .catch(err => {
+//     console.error('Unable to connect to the database:', err);
+//   });
 
 const app = express();
 
@@ -11,27 +30,27 @@ app.use(cookieParser);
 app.use(queryParser);
 app.use(bodyParser.json());
 
-const products = [];
-const users = [
-    {
-        username: "Clark Kent",
-        email: "clark_kent@gmail.com",
-        password: "1234",
-    }
-];
+// const products = [];
+// const users = [
+//     {
+//         username: "Clark Kent",
+//         email: "clark_kent@gmail.com",
+//         password: "1234",
+//     }
+// ];
 
 passport.use(new LocalStrategy({
     usernameField: "email",
     passwordField: "password",
     session: false,
 }, (username, password, done) => {
-    const user = users.find((user) => user.email === username);
-
-    if (user === undefined || user.password !== password) {
-        done(null, false, "bad username")
-    } else {
-        done(null, user)
-    }
+    User.findOne({where: { email: username }}).then(user => {
+        if (user === null || user.password !== password) {
+            done(null, false, "bad username")
+        } else {
+            done(null, user)
+        }
+    })
 }))
 
 function checkToken(req, res, next) {
@@ -51,27 +70,6 @@ function checkToken(req, res, next) {
 }
 
 app.post('/auth', passport.authenticate("local", {session: false}), (req, res) => {
-    // const {email, password} = req.body;
-    // const user = users.find((user) => user.email === email);
-
-    // if (user === undefined || user.password !== password) {
-    //     res.status(404).send({code: 404, message: "Not Found", data: {}})
-    // } else {
-    //     const token = jwt.sign({id: user.username}, "secret word", { expiresIn: 100 });
-    //     const response = {
-    //         code: 200,
-    //         message: "OK",
-    //         data: {
-    //             user: {
-    //                 email: user.email,
-    //                 username: user.username,
-    //             }
-    //         },
-    //         token,
-    //     }
-    //     res.json(response);
-    // }
-
     const token = jwt.sign({id: req.user.username}, "secret word", { expiresIn: 100 });
     const response = {
         code: 200,
@@ -88,41 +86,27 @@ app.post('/auth', passport.authenticate("local", {session: false}), (req, res) =
 })
 
 app.get('/api/products', checkToken, (req, res) => {
-    res.json(JSON.stringify(products));
+    Product.findAll().then(products => res.json(products));
 });
   
 app.get('/api/products/:id', checkToken, (req, res) => {
-    for (let i = 0; i < products.length; i++) {
-        if (products[i].id === req.params.id) {
-            res.json(JSON.stringify(products[i]));
-            return;
-        }
-    }
-    res.send(`product ${req.params.id} doesnt exist`);
+    Product.findById(req.params.id).then(product => res.json(product));
 });
 
 app.get('/api/products/:id/reviews', checkToken, (req, res) => {
-    for (let i = 0; i < products.length; i++) {
-        if (products[i].id === req.params.id) {
-            res.json(JSON.stringify(products[i].reviews));
-            return;
-        }
-    }
-    res.send(`product ${req.params.id} doesnt exist`);
+    Product.findById(req.params.id).then(product => res.json(product.reviews));
 });
   
 app.post('/api/products', checkToken, (req, res) => {
-    console.log(req.body)
-    let product = {
+    const product = {
         ...req.body,
         id: uniqid(),
     }
-    products.push(product)
-    res.json(JSON.stringify(product));
+    Product.create(product).then(product => res.json(product));
 })
 
 app.get('/api/users', checkToken, (req, res) => {
-    res.json(users);
+    User.findAll().then(users => res.json(users));
 })
 
 function cookieParser(req, res, next) {
