@@ -71,8 +71,10 @@ actions[program.action](...args);
 
 function reverse() {
     const stream = through(function (buffer, encoding, next) {
-        const reverseStr = buffer.toString().slice(0, -2).split('').reverse().join('');
-        this.push(reverseStr + buffer.toString().slice(-2))
+        const str = buffer.toString();
+        const lineEnd = str.match(/\s*$/)[0];
+        const reverseStr = str.replace(lineEnd, '').split('').reverse().join('');
+        this.push(reverseStr + lineEnd);
         next();
     })
 
