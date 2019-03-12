@@ -4,31 +4,37 @@ const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const passport = require("passport");
 const LocalStrategy = require("passport-local");
-const Sequelize = require('sequelize');
+const mongoose = require('mongoose');
 
-const sq = require("./sequelize");
-const User = require("./models/User");
-const Product = require("./models/Product");
+mongoose.connect('mongodb://localhost/nodejs');
 
-// console.log(User)
+const db = mongoose.connection;
+db.on('error', (console.error.bind(console, 'connection error:')));
+db.once('open', () => {
+  console.log('connected to db');
+});
 
-User.sync();
-Product.sync();
-
-// sq
-//   .authenticate()
-//   .then(() => {
-//     console.log('Connection has been established successfully.');
-//   })
-//   .catch(err => {
-//     console.error('Unable to connect to the database:', err);
-//   });
 
 const app = express();
 
 app.use(cookieParser);
 app.use(queryParser);
 app.use(bodyParser.json());
+
+const userSchema = mongoose.Schema({
+    username: String,
+    email: String,
+    password: String
+})
+
+const productSchema = mongoose.Schema({
+    id: String,
+    title: String,
+    reviews: Array
+})
+
+const User = mongoose.model('User', userSchema);
+const Product = mongoose.model('Product', productSchema);
 
 // const products = [];
 // const users = [
@@ -44,7 +50,8 @@ passport.use(new LocalStrategy({
     passwordField: "password",
     session: false,
 }, (username, password, done) => {
-    User.findOne({where: { email: username }}).then(user => {
+    User.findOne({ email: username }, (err, user) => {
+        console.log(user)
         if (user === null || user.password !== password) {
             done(null, false, "bad username")
         } else {
@@ -86,15 +93,15 @@ app.post('/auth', passport.authenticate("local", {session: false}), (req, res) =
 })
 
 app.get('/api/products', checkToken, (req, res) => {
-    Product.findAll().then(products => res.json(products));
+    Product.find((err, products) => res.json(products));
 });
   
 app.get('/api/products/:id', checkToken, (req, res) => {
-    Product.findById(req.params.id).then(product => res.json(product));
+    Product.find({id: req.params.id}, (err, product) => res.json(product));
 });
 
 app.get('/api/products/:id/reviews', checkToken, (req, res) => {
-    Product.findById(req.params.id).then(product => res.json(product.reviews));
+    Product.find({id: req.params.id}, (err, product) => res.json(product.reviews));
 });
   
 app.post('/api/products', checkToken, (req, res) => {
@@ -102,11 +109,11 @@ app.post('/api/products', checkToken, (req, res) => {
         ...req.body,
         id: uniqid(),
     }
-    Product.create(product).then(product => res.json(product));
+    new Product(product).save((err, product) => res.json(product));
 })
 
 app.get('/api/users', checkToken, (req, res) => {
-    User.findAll().then(users => res.json(users));
+    User.find((err, users) => res.json(users));
 })
 
 function cookieParser(req, res, next) {
