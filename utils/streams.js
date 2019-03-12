@@ -91,6 +91,10 @@ function transform() {
 }
 
 function outputFile(filePath) {
+    const isFileExists = fs.existsSync(filePath);
+    if (!isFileExists) {
+        return console.log("such file does not exist")
+    }
     let readStream = fs.createReadStream(filePath)
 
     readStream.on('data', (chunk) => {
@@ -105,6 +109,10 @@ function outputFile(filePath) {
 }
 
 function convertFromFile(filepath) {
+    const isFileExists = fs.existsSync(filepath);
+    if (!isFileExists) {
+        return console.log("such file does not exist")
+    }
     let readStream = fs.createReadStream(filepath);
     readStream.setEncoding('utf8');
     let csvData = "";
@@ -123,6 +131,10 @@ function convertFromFile(filepath) {
 }
 
 function convertToFile(filePath) {
+    const isFileExists = fs.existsSync(filePath);
+    if (!isFileExists) {
+        return console.log("such file does not exist")
+    }
     const outputFileName = filePath.slice(0, -3) + "json";
     let readStream = fs.createReadStream(filePath);
     let writeStream = fs.createWriteStream(outputFileName);
